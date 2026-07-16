@@ -1,5 +1,7 @@
 # Codex Dream Skin
 
+> 当前仓库封存 Windows `rick-portal` 主题 `1.5.5`：全屏云海工作台、无人物绿色传送门横幅、深青黑原生控件皮肤，以及可恢复的 CDP 注入启动流程。
+
 <p align="center">
   <strong>中文</strong> · <a href="./README.en.md">English</a>
 </p>
@@ -107,6 +109,13 @@
 - Windows：[`windows/SKILL.md`](./windows/SKILL.md)
 - 路径对照：[`docs/platforms.md`](./docs/platforms.md)
 - 项目记录：[`docs/PROJECT.md`](./docs/PROJECT.md)
+
+Windows 瑞克传送门主题安装：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\windows\scripts\install-dream-skin.ps1 -Theme rick-portal
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\windows\scripts\start-dream-skin.ps1 -Theme rick-portal
+```
 
 ## 反馈与贡献
 

@@ -10,11 +10,30 @@ $node = (Get-Command node -ErrorAction Stop).Source
 $injector = Join-Path $PSScriptRoot 'injector.mjs'
 $StateRoot = Join-Path $env:LOCALAPPDATA 'CodexDreamSkin'
 $StatePath = Join-Path $StateRoot 'state.json'
+$GuardianStatePath = Join-Path $StateRoot 'guardian-state.json'
+
+if (Test-Path -LiteralPath $GuardianStatePath) {
+  try {
+    $guardianState = Get-Content -LiteralPath $GuardianStatePath -Raw | ConvertFrom-Json
+    if ($guardianState.guardianPid) {
+      $guardian = Get-CimInstance Win32_Process -Filter "ProcessId = $([int]$guardianState.guardianPid)" -ErrorAction SilentlyContinue
+      if ($guardian.CommandLine -match 'watch-dream-skin\.ps1' -and $guardian.CommandLine -match 'Codex-Dream-Skin') {
+        Stop-Process -Id ([int]$guardianState.guardianPid) -Force -ErrorAction SilentlyContinue
+      }
+    }
+  } catch {}
+  Remove-Item -LiteralPath $GuardianStatePath -Force -ErrorAction SilentlyContinue
+}
 
 if (Test-Path -LiteralPath $StatePath) {
   try {
     $state = Get-Content -LiteralPath $StatePath -Raw | ConvertFrom-Json
-    if ($state.injectorPid) { Stop-Process -Id ([int]$state.injectorPid) -Force -ErrorAction SilentlyContinue }
+    if ($state.injectorPid) {
+      $injectorProcess = Get-CimInstance Win32_Process -Filter "ProcessId = $([int]$state.injectorPid)" -ErrorAction SilentlyContinue
+      if ($injectorProcess.CommandLine -match 'injector\.mjs' -and $injectorProcess.CommandLine -match 'Codex-Dream-Skin') {
+        Stop-Process -Id ([int]$state.injectorPid) -Force -ErrorAction SilentlyContinue
+      }
+    }
   } catch {}
   Remove-Item -LiteralPath $StatePath -Force -ErrorAction SilentlyContinue
 }
@@ -24,11 +43,13 @@ try { & $node $injector --remove --port $Port --timeout-ms 3000 } catch {}
 if ($Uninstall) {
   $desktop = [Environment]::GetFolderPath('Desktop')
   $startMenu = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs'
-  @(
-    (Join-Path $desktop 'Codex Dream Skin.lnk'),
-    (Join-Path $desktop 'Codex Dream Skin - Restore.lnk'),
-    (Join-Path $startMenu 'Codex Dream Skin.lnk')
-  ) | ForEach-Object { Remove-Item -LiteralPath $_ -Force -ErrorAction SilentlyContinue }
+  $startup = Join-Path $startMenu 'Startup'
+  Remove-Item -LiteralPath (Join-Path $desktop 'Codex Dream Skin.lnk') -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath (Join-Path $desktop 'Codex.lnk') -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath (Join-Path $desktop 'Codex Dream Skin - Restore.lnk') -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath (Join-Path $startMenu 'Codex Dream Skin.lnk') -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath (Join-Path $startMenu 'Codex.lnk') -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath (Join-Path $startup 'Codex Dream Skin - Auto Start.lnk') -Force -ErrorAction SilentlyContinue
 }
 
 if ($RestoreBaseTheme) {

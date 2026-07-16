@@ -9,9 +9,9 @@ Apply a reversible renderer skin through Chromium DevTools Protocol while launch
 
 ## Workflow
 
-1. Run `scripts/install-dream-skin.ps1` once to set the matching official base colors and create launch/restore shortcuts.
-2. Run `scripts/start-dream-skin.ps1`. Add `-RestartExisting` only when the user authorized restarting an already-open Codex app.
-3. Run `scripts/verify-dream-skin.ps1 -ScreenshotPath <absolute-path>` after launch. Treat a missing hero, native composer, sidebar skin, or injection marker as failure. The native suggestion count is responsive and may be two to four.
+1. Run `scripts/install-dream-skin.ps1` once to back up the official appearance config and create launch/restore shortcuts. The default `rick-portal` theme also gets a Windows sign-in auto-start shortcut; pass `-NoAutoStart` to opt out. It does not force an official light/dark preference; use `-Theme dream` for the legacy pink theme and its matching base colors.
+2. Run `scripts/start-dream-skin.ps1`. Add `-RestartExisting` only when the user authorized restarting an already-open Codex app. Use `-Theme rick-portal` explicitly when scripting deployments.
+3. Run `scripts/verify-dream-skin.ps1 -Theme rick-portal -ScreenshotPath <absolute-path>` after launch. Treat a missing hero, native composer, sidebar skin, or injection marker as failure. The native suggestion count is responsive and may be two to four.
 4. Inspect the screenshot against `references/qa-inventory.md`. Verify both the home screen and a normal task before signing off.
 5. Run `scripts/restore-dream-skin.ps1` for live removal. Add `-Uninstall` to delete shortcuts; add `-RestoreBaseTheme` when the user also wants the pre-install config backup restored.
 
@@ -32,5 +32,6 @@ Apply a reversible renderer skin through Chromium DevTools Protocol while launch
 - `assets/dream-skin.css`: full visual layer.
 - `assets/renderer-inject.js`: idempotent DOM integration and cleanup.
 - `assets/dream-reference.png`: user-provided visual reference used only in cropped decorative regions.
+- `themes/rick-portal/`: two-scene portal theme, renderer integration, CSS, manifest, home hero, and work background.
 - `references/qa-inventory.md`: required functional and visual signoff coverage.
 - `references/runtime-notes.md`: troubleshooting and update behavior.

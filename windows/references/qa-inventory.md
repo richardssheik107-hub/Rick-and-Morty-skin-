@@ -27,6 +27,14 @@
 - Inspect the sidebar, header, hero edges, card labels, composer controls, scrollbar, ribbon, and bottom-right decoration.
 - Reject black/transparent sidebar artifacts, clipped cards, duplicated/disconnected project labels, rasterized native controls, weak contrast, or decorations intercepting clicks.
 
+## Rick Portal theme
+
+- Home, new chat, and new project: the character-free green portal hero is visible on the right over the full-screen cloud scene; native title/project controls remain readable on the left.
+- Normal task: the cosmic portal work background replaces the home hero and remains behind readable messages, code, diffs, tool output, and the native composer.
+- State transition: moving between home and a task updates `data-portal-mode` without a reload and never shows both images in one state.
+- Shell: sidebar, header, suggestion cards, project selector, menus, dialogs, scrollbars, and composer use the dark teal/portal-green palette.
+- Motion: status and star animation is subtle and is disabled by `prefers-reduced-motion`; suggestion cards render without transform or shadow animation.
+
 ## Exploratory checks
 
 - Start when the debug port is occupied: fail with a clear message or use a caller-selected port.

@@ -1,0 +1,12 @@
+{
+  "id": "rick-portal",
+  "name": "Rick Portal Workspace",
+  "version": "1.5.5",
+  "css": "portal-theme.css",
+  "renderer": "portal-renderer.js",
+  "assets": {
+    "home": "assets/portal-home-fullscreen-v1.png",
+    "homeHero": "assets/portal-home-hero-no-characters-v1.png",
+    "work": "assets/portal-work-background.png"
+  }
+}

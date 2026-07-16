@@ -26,6 +26,13 @@
     const root = document.documentElement;
     if (!root) return;
     root.classList.add("codex-dream-skin");
+    root.classList.remove("portal-skin");
+    root.style.removeProperty("--portal-home-art");
+    root.style.removeProperty("--portal-work-art");
+    if (root.dataset) {
+      delete root.dataset.portalTheme;
+      delete root.dataset.portalMode;
+    }
     root.style.setProperty("--dream-art", `url("${artUrl}")`);
 
     let style = document.getElementById(STYLE_ID);
@@ -34,9 +41,10 @@
       style.id = STYLE_ID;
       (document.head || root).appendChild(style);
     }
-    if (style.dataset.dreamVersion !== "1") {
+    if (style.dataset.dreamVersion !== "1" || style.dataset.dreamTheme !== "dream") {
       style.textContent = cssText;
       style.dataset.dreamVersion = "1";
+      style.dataset.dreamTheme = "dream";
     }
 
     const shellMain = document.querySelector("main.main-surface") || document.querySelector("main");
@@ -47,12 +55,14 @@
     if (home) home.classList.add("dream-home");
 
     if (!shellMain || !document.body) return;
+    shellMain.classList.remove("portal-home-shell", "portal-thread-shell", "portal-secondary-shell");
     shellMain.classList.toggle("dream-home-shell", Boolean(home));
     let chrome = document.getElementById(CHROME_ID);
-    if (!chrome || chrome.parentElement !== document.body) {
+    if (!chrome || chrome.parentElement !== document.body || chrome.dataset.dreamTheme !== "dream") {
       chrome?.remove();
       chrome = document.createElement("div");
       chrome.id = CHROME_ID;
+      chrome.dataset.dreamTheme = "dream";
       chrome.setAttribute("aria-hidden", "true");
       chrome.innerHTML = `
         <div class="dream-brand"><span class="dream-note">♫</span><span><b>薛凯琪专属定制皮肤</b><small>Codex App 限定版 ✦</small></span></div>
@@ -73,9 +83,13 @@
   const cleanup = () => {
     window.__CODEX_DREAM_SKIN_DISABLED__ = true;
     document.documentElement?.classList.remove("codex-dream-skin");
+    document.documentElement?.classList.remove("portal-skin");
     document.documentElement?.style.removeProperty("--dream-art");
+    document.documentElement?.style.removeProperty("--portal-home-art");
+    document.documentElement?.style.removeProperty("--portal-work-art");
     document.querySelectorAll(".dream-home").forEach((node) => node.classList.remove("dream-home"));
     document.querySelectorAll(".dream-home-shell").forEach((node) => node.classList.remove("dream-home-shell"));
+    document.querySelectorAll(".portal-home-shell, .portal-thread-shell, .portal-secondary-shell").forEach((node) => node.classList.remove("portal-home-shell", "portal-thread-shell", "portal-secondary-shell"));
     document.getElementById(STYLE_ID)?.remove();
     document.getElementById(CHROME_ID)?.remove();
     const state = window[STATE_KEY];
