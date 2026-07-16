@@ -117,7 +117,11 @@ async function waitForTargets(port, timeoutMs) {
       const response = await fetch(`http://127.0.0.1:${port}/json/list`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const targets = await response.json();
-      const pages = targets.filter((item) => item.type === "page" && item.url.startsWith("app://"));
+      const pages = targets.filter((item) =>
+        item.type === "page"
+        && item.url.startsWith("app://-/index.html")
+        && !item.url.includes("initialRoute=%2Favatar-overlay")
+      );
       if (pages.length) return pages;
     } catch (error) {
       lastError = error;
@@ -132,12 +136,13 @@ async function loadPayload(themeName) {
     const themeRoot = path.join(root, "themes", themeName);
     const manifest = JSON.parse(await fs.readFile(path.join(themeRoot, "theme.json"), "utf8"));
     if (manifest.id !== themeName) throw new Error(`Theme id mismatch: expected ${themeName}, got ${manifest.id}`);
-    const [css, template, homeArt, homeHeroArt, workArt, portalTexture] = await Promise.all([
+    const [css, template, homeArt, homeHeroArt, workArt, workForeground, portalTexture] = await Promise.all([
       fs.readFile(path.join(themeRoot, manifest.css), "utf8"),
       fs.readFile(path.join(themeRoot, manifest.renderer), "utf8"),
       fs.readFile(path.join(themeRoot, manifest.assets.home)),
       fs.readFile(path.join(themeRoot, manifest.assets.homeHero)),
       fs.readFile(path.join(themeRoot, manifest.assets.work)),
+      fs.readFile(path.join(themeRoot, manifest.assets.workForeground)),
       fs.readFile(path.join(themeRoot, manifest.assets.portalTexture)),
     ]);
     return template
@@ -145,6 +150,7 @@ async function loadPayload(themeName) {
       .replace("__PORTAL_HOME_ART_JSON__", JSON.stringify(`data:image/png;base64,${homeArt.toString("base64")}`))
       .replace("__PORTAL_HOME_HERO_ART_JSON__", JSON.stringify(`data:image/png;base64,${homeHeroArt.toString("base64")}`))
       .replace("__PORTAL_WORK_ART_JSON__", JSON.stringify(`data:image/png;base64,${workArt.toString("base64")}`))
+      .replace("__PORTAL_WORK_FOREGROUND_JSON__", JSON.stringify(`data:image/png;base64,${workForeground.toString("base64")}`))
       .replace("__PORTAL_FLUID_TEXTURE_JSON__", JSON.stringify(`data:image/png;base64,${portalTexture.toString("base64")}`))
       .replace("__PORTAL_THEME_META_JSON__", JSON.stringify({
         id: manifest.id,
@@ -180,6 +186,7 @@ async function removeFromSession(session) {
     document.documentElement?.style.removeProperty('--dream-art');
     document.documentElement?.style.removeProperty('--portal-home-art');
     document.documentElement?.style.removeProperty('--portal-work-art');
+    document.documentElement?.style.removeProperty('--portal-work-foreground');
     if (document.documentElement?.dataset) {
       delete document.documentElement.dataset.portalTheme;
       delete document.documentElement.dataset.portalMode;
@@ -203,6 +210,8 @@ async function verifySession(session) {
     const composer = box(document.querySelector('.composer-surface-chrome'));
     const sidebar = box(document.querySelector('aside.app-shell-left-panel'));
     const main = box(document.querySelector('main.main-surface') || document.querySelector('main'));
+    const mainNode = document.querySelector('main.main-surface') || document.querySelector('main');
+    const foregroundStyle = mainNode ? getComputedStyle(mainNode, '::after') : null;
     const chrome = box(document.getElementById('codex-dream-skin-chrome'));
     const hero = box(home?.firstElementChild?.firstElementChild?.firstElementChild);
     const projectSelector = box(home?.querySelector('div:has(> .horizontal-scroll-fade-mask [class*="group/project-selector"])'));
@@ -251,8 +260,14 @@ async function verifySession(session) {
         home: Boolean(window.__CODEX_DREAM_SKIN_STATE__?.homeArtUrl),
         homeHero: Boolean(window.__CODEX_DREAM_SKIN_STATE__?.homeHeroArtUrl),
         work: Boolean(window.__CODEX_DREAM_SKIN_STATE__?.workArtUrl),
+        workForeground: Boolean(window.__CODEX_DREAM_SKIN_STATE__?.workForegroundUrl),
         portalTexture: Boolean(window.__CODEX_DREAM_SKIN_STATE__?.portalTextureUrl),
       },
+      portalForeground: foregroundStyle ? {
+        active: foregroundStyle.content !== 'none' && foregroundStyle.backgroundImage !== 'none',
+        zIndex: foregroundStyle.zIndex,
+        pointerEvents: foregroundStyle.pointerEvents,
+      } : null,
       portalMotion,
       layoutIssues,
     };
@@ -268,9 +283,13 @@ async function verifySession(session) {
       ? (result.portalMotion.running && result.portalMotion.frameCount > 0 && Boolean(result.portalMotion.sampleHash))
       : !result.portalMotion?.running;
     const motionHealthy = motionCanvasHealthy && motionRunStateHealthy;
+    const foregroundHealthy = result.mode !== 'thread' || (
+      result.portalAssets.workForeground && result.portalForeground?.active &&
+      result.portalForeground.zIndex === '0' && result.portalForeground.pointerEvents === 'none'
+    );
     result.pass = result.installed && result.stylePresent && result.chromePresent &&
       result.chromePointerEvents === 'none' && Boolean(result.composer) && Boolean(result.sidebar) &&
-      result.layoutIssues.length === 0 && motionHealthy &&
+      result.layoutIssues.length === 0 && motionHealthy && foregroundHealthy &&
       (!result.homePresent || (Boolean(result.hero) &&
         (!result.suggestionsPresent || (result.cards.length >= 2 && result.cards.length <= 4))));
     return result;

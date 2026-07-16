@@ -114,6 +114,19 @@ html.codex-dream-skin.portal-skin main.main-surface.portal-thread-shell {
   background-size: cover, cover, cover !important;
 }
 
+html.codex-dream-skin.portal-skin main.main-surface.portal-thread-shell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: var(--portal-work-foreground);
+  background-repeat: no-repeat;
+  background-position: center right;
+  background-size: cover;
+  opacity: .98;
+}
+
 #codex-portal-fluid,
 #codex-portal-motion {
   position: absolute;

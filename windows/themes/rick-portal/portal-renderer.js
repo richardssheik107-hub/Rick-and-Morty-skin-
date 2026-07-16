@@ -1,4 +1,4 @@
-((cssText, homeArtDataUrl, homeHeroArtDataUrl, workArtDataUrl, portalTextureDataUrl, themeMeta) => {
+((cssText, homeArtDataUrl, homeHeroArtDataUrl, workArtDataUrl, workForegroundDataUrl, portalTextureDataUrl, themeMeta) => {
   const STATE_KEY = "__CODEX_DREAM_SKIN_STATE__";
   const STYLE_ID = "codex-dream-skin-style";
   const CHROME_ID = "codex-dream-skin-chrome";
@@ -36,6 +36,9 @@
   const workArtUrl = canReuseAssets && previous?.workArtUrl
     ? previous.workArtUrl
     : toObjectUrl(workArtDataUrl);
+  const workForegroundUrl = canReuseAssets && previous?.workForegroundUrl
+    ? previous.workForegroundUrl
+    : toObjectUrl(workForegroundDataUrl);
   const portalTextureUrl = canReuseAssets && previous?.portalTextureUrl
     ? previous.portalTextureUrl
     : toObjectUrl(portalTextureDataUrl);
@@ -43,6 +46,7 @@
     if (previous?.homeArtUrl) URL.revokeObjectURL(previous.homeArtUrl);
     if (previous?.homeHeroArtUrl) URL.revokeObjectURL(previous.homeHeroArtUrl);
     if (previous?.workArtUrl) URL.revokeObjectURL(previous.workArtUrl);
+    if (previous?.workForegroundUrl) URL.revokeObjectURL(previous.workForegroundUrl);
     if (previous?.portalTextureUrl) URL.revokeObjectURL(previous.portalTextureUrl);
   }
 
@@ -621,6 +625,7 @@
     root.style.setProperty("--portal-home-art", `url("${homeArtUrl}")`);
     root.style.setProperty("--portal-home-hero-art", `url("${homeHeroArtUrl}")`);
     root.style.setProperty("--portal-work-art", `url("${workArtUrl}")`);
+    root.style.setProperty("--portal-work-foreground", `url("${workForegroundUrl}")`);
     root.dataset.portalTheme = themeMeta.id;
 
     let style = document.getElementById(STYLE_ID);
@@ -691,6 +696,7 @@
     root?.style.removeProperty("--portal-home-art");
     root?.style.removeProperty("--portal-home-hero-art");
     root?.style.removeProperty("--portal-work-art");
+    root?.style.removeProperty("--portal-work-foreground");
     if (root?.dataset) {
       delete root.dataset.portalTheme;
       delete root.dataset.portalMode;
@@ -712,6 +718,7 @@
     if (state?.homeArtUrl) URL.revokeObjectURL(state.homeArtUrl);
     if (state?.homeHeroArtUrl) URL.revokeObjectURL(state.homeHeroArtUrl);
     if (state?.workArtUrl) URL.revokeObjectURL(state.workArtUrl);
+    if (state?.workForegroundUrl) URL.revokeObjectURL(state.workForegroundUrl);
     if (state?.portalTextureUrl) URL.revokeObjectURL(state.portalTextureUrl);
     delete window[STATE_KEY];
     return true;
@@ -742,10 +749,11 @@
     homeArtUrl,
     homeHeroArtUrl,
     workArtUrl,
+    workForegroundUrl,
     portalTextureUrl,
     version: themeMeta.version,
     theme: themeMeta.id,
   };
   ensure();
   return { installed: true, version: themeMeta.version, theme: themeMeta.id };
-})(__PORTAL_CSS_JSON__, __PORTAL_HOME_ART_JSON__, __PORTAL_HOME_HERO_ART_JSON__, __PORTAL_WORK_ART_JSON__, __PORTAL_FLUID_TEXTURE_JSON__, __PORTAL_THEME_META_JSON__)
+})(__PORTAL_CSS_JSON__, __PORTAL_HOME_ART_JSON__, __PORTAL_HOME_HERO_ART_JSON__, __PORTAL_WORK_ART_JSON__, __PORTAL_WORK_FOREGROUND_JSON__, __PORTAL_FLUID_TEXTURE_JSON__, __PORTAL_THEME_META_JSON__)

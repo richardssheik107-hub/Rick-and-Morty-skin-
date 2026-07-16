@@ -2,6 +2,8 @@
 
 The preview animation is an original, dependency-free implementation. No third-party source code or shader text is bundled in the theme. Its painted portal texture comes from the visual reference supplied by the user and is animated by the theme's original shader.
 
+The v1.6 work scene was redrawn specifically for this theme from the user's composition and portal references. A matching alpha foreground containing only the two characters is layered above the WebGL canvas, so the animated liquid remains physically behind their silhouettes instead of relying on an approximate shader cutout.
+
 The design and architecture were informed by these open-source projects:
 
 - [PavelDoGreat/WebGL-Fluid-Simulation](https://github.com/PavelDoGreat/WebGL-Fluid-Simulation) (MIT): GPU fluid motion, mobile-aware quality controls, and framebuffer-based effects.
