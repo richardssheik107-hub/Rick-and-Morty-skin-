@@ -104,6 +104,7 @@ html.codex-dream-skin.portal-skin main.main-surface.portal-home-shell {
 }
 
 html.codex-dream-skin.portal-skin main.main-surface.portal-thread-shell {
+  isolation: isolate !important;
   background-image:
     linear-gradient(90deg, rgba(2, 11, 18, .91) 0%, rgba(3, 14, 22, .84) 47%, rgba(2, 12, 18, .69) 100%),
     linear-gradient(180deg, rgba(2, 11, 17, .36), rgba(2, 10, 15, .68)),
@@ -111,6 +112,44 @@ html.codex-dream-skin.portal-skin main.main-surface.portal-thread-shell {
   background-repeat: no-repeat !important;
   background-position: center, center, center right !important;
   background-size: cover, cover, cover !important;
+}
+
+#codex-portal-fluid,
+#codex-portal-motion {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+  opacity: .82;
+  mix-blend-mode: screen;
+  contain: strict;
+}
+
+#codex-portal-fluid {
+  z-index: -2;
+  opacity: .72;
+  filter: saturate(116%) contrast(108%);
+}
+
+#codex-portal-motion {
+  z-index: -1;
+}
+
+#codex-portal-fluid[hidden],
+#codex-portal-motion[hidden] {
+  display: none !important;
+}
+
+html.codex-dream-skin.portal-skin main.main-surface.portal-thread-shell > :not(#codex-portal-fluid):not(#codex-portal-motion) {
+  position: relative;
+  z-index: 1;
+}
+
+/* Chrome decorations belong to the home screen; never paint them over a chat. */
+#codex-dream-skin-chrome.portal-thread-shell .portal-stars {
+  display: none;
 }
 
 html.codex-dream-skin.portal-skin main.main-surface > header.app-header-tint {
@@ -533,6 +572,11 @@ html.codex-dream-skin.portal-skin :focus-visible { outline-color: var(--portal-g
 }
 
 @media (prefers-reduced-motion: reduce) {
+  #codex-portal-fluid,
+  #codex-portal-motion {
+    display: none !important;
+  }
+
   .portal-status i,
   .portal-stars i,
   html.codex-dream-skin.portal-skin * {

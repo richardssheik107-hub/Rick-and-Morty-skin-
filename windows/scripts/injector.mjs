@@ -144,7 +144,11 @@ async function loadPayload(themeName) {
       .replace("__PORTAL_HOME_ART_JSON__", JSON.stringify(`data:image/png;base64,${homeArt.toString("base64")}`))
       .replace("__PORTAL_HOME_HERO_ART_JSON__", JSON.stringify(`data:image/png;base64,${homeHeroArt.toString("base64")}`))
       .replace("__PORTAL_WORK_ART_JSON__", JSON.stringify(`data:image/png;base64,${workArt.toString("base64")}`))
-      .replace("__PORTAL_THEME_META_JSON__", JSON.stringify({ id: manifest.id, version: manifest.version }));
+      .replace("__PORTAL_THEME_META_JSON__", JSON.stringify({
+        id: manifest.id,
+        version: manifest.version,
+        motion: manifest.motion ?? null,
+      }));
   }
   const [css, template, art] = await Promise.all([
     fs.readFile(path.join(root, "assets", "dream-skin.css"), "utf8"),
@@ -218,6 +222,7 @@ async function verifySession(session) {
     if (cards.some((card) => intersects(card, projectSelector))) layoutIssues.push('suggestion-cards-overlap-project-selector');
     if (home && !withinViewport(hero)) layoutIssues.push('home-hero-outside-viewport');
     if (home && intersects(hero, composer)) layoutIssues.push('home-hero-overlaps-composer');
+    const portalMotion = window.__CODEX_DREAM_SKIN_STATE__?.motion?.snapshot?.() ?? null;
     const result = {
       installed: document.documentElement.classList.contains('codex-dream-skin'),
       version: window.__CODEX_DREAM_SKIN_STATE__?.version ?? null,
@@ -245,11 +250,23 @@ async function verifySession(session) {
         homeHero: Boolean(window.__CODEX_DREAM_SKIN_STATE__?.homeHeroArtUrl),
         work: Boolean(window.__CODEX_DREAM_SKIN_STATE__?.workArtUrl),
       },
+      portalMotion,
       layoutIssues,
     };
+    const motionEnabledForThread = Boolean(result.portalMotion?.enabled && result.mode === 'thread');
+    const motionCanvasHealthy = !motionEnabledForThread || (
+      result.portalMotion.active && result.portalMotion.canvasPresent &&
+      result.portalMotion.canvasCount === 1 && result.portalMotion.fluidCanvasCount === 1 &&
+      result.portalMotion.visuallyContained === true && Boolean(result.portalMotion.portal)
+    );
+    const motionShouldRun = Boolean(motionEnabledForThread && !result.portalMotion.reducedMotion && !result.portalMotion.hidden);
+    const motionRunStateHealthy = motionShouldRun
+      ? (result.portalMotion.running && result.portalMotion.frameCount > 0 && Boolean(result.portalMotion.sampleHash))
+      : !result.portalMotion?.running;
+    const motionHealthy = motionCanvasHealthy && motionRunStateHealthy;
     result.pass = result.installed && result.stylePresent && result.chromePresent &&
       result.chromePointerEvents === 'none' && Boolean(result.composer) && Boolean(result.sidebar) &&
-      result.layoutIssues.length === 0 &&
+      result.layoutIssues.length === 0 && motionHealthy &&
       (!result.homePresent || (Boolean(result.hero) &&
         (!result.suggestionsPresent || (result.cards.length >= 2 && result.cards.length <= 4))));
     return result;

@@ -1,12 +1,27 @@
 {
   "id": "rick-portal",
   "name": "Rick Portal Workspace",
-  "version": "1.5.5",
+  "version": "1.6.0-preview.3",
   "css": "portal-theme.css",
   "renderer": "portal-renderer.js",
   "assets": {
     "home": "assets/portal-home-fullscreen-v1.png",
     "homeHero": "assets/portal-home-hero-no-characters-v1.png",
     "work": "assets/portal-work-background.png"
+  },
+  "motion": {
+    "enabled": true,
+    "targetFps": 30,
+    "minimumFps": 26,
+    "maximumDevicePixelRatio": 1.5,
+    "fluidResolutionScale": 0.72,
+    "portal": {
+      "sourceWidth": 1672,
+      "sourceHeight": 941,
+      "centerX": 0.795,
+      "centerY": 0.49,
+      "radiusX": 0.235,
+      "radiusY": 0.43
+    }
   }
 }
