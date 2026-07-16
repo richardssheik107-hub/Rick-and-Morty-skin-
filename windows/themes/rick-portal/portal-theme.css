@@ -105,13 +105,14 @@ html.codex-dream-skin.portal-skin main.main-surface.portal-home-shell {
 
 html.codex-dream-skin.portal-skin main.main-surface.portal-thread-shell {
   isolation: isolate !important;
+  background-color: #020c12 !important;
   background-image:
     linear-gradient(90deg, rgba(2, 11, 18, .91) 0%, rgba(3, 14, 22, .84) 47%, rgba(2, 12, 18, .69) 100%),
     linear-gradient(180deg, rgba(2, 11, 17, .36), rgba(2, 10, 15, .68)),
     var(--portal-work-art) !important;
   background-repeat: no-repeat !important;
-  background-position: center, center, center right !important;
-  background-size: cover, cover, cover !important;
+  background-position: center, center, center center !important;
+  background-size: cover, cover, contain !important;
 }
 
 html.codex-dream-skin.portal-skin main.main-surface.portal-thread-shell::after {
@@ -122,8 +123,8 @@ html.codex-dream-skin.portal-skin main.main-surface.portal-thread-shell::after {
   pointer-events: none;
   background-image: var(--portal-work-foreground);
   background-repeat: no-repeat;
-  background-position: center right;
-  background-size: cover;
+  background-position: center center;
+  background-size: contain;
   opacity: .98;
 }
 
@@ -568,7 +569,7 @@ html.codex-dream-skin.portal-skin :focus-visible { outline-color: var(--portal-g
   .portal-home [data-feature="game-source"]::before { font-size: 9px; }
   .portal-home [data-feature="game-source"]::after { font-size: 11px; margin-top: 9px; }
   .portal-home .group\/home-suggestions button { min-height: 108px !important; font-size: 12px !important; }
-  html.codex-dream-skin.portal-skin main.main-surface.portal-thread-shell { background-position: center, center, 64% center !important; }
+  html.codex-dream-skin.portal-skin main.main-surface.portal-thread-shell { background-position: center, center, center center !important; }
   html.codex-dream-skin.portal-skin main.main-surface.portal-home-shell { background-position: center, center, right center !important; }
 }
 

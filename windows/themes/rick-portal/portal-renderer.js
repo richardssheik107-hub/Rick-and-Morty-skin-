@@ -59,6 +59,7 @@
       maximumDevicePixelRatio: Math.max(1, Math.min(2, Number(rawConfig.maximumDevicePixelRatio) || 1.5)),
       fluidResolutionScale: Math.max(0.45, Math.min(1, Number(rawConfig.fluidResolutionScale) || 0.72)),
       portal: {
+        fit: portalConfig.fit === "contain" ? "contain" : "cover",
         sourceWidth: Number(portalConfig.sourceWidth) || 1672,
         sourceHeight: Number(portalConfig.sourceHeight) || 941,
         centerX: Number(portalConfig.centerX) || 0.795,
@@ -284,7 +285,9 @@
       const positionY = parsePosition(workPosition[1] || "50%", "y");
       const sourceWidth = config.portal.sourceWidth;
       const sourceHeight = config.portal.sourceHeight;
-      const scale = Math.max(width / sourceWidth, height / sourceHeight);
+      const scale = config.portal.fit === "contain"
+        ? Math.min(width / sourceWidth, height / sourceHeight)
+        : Math.max(width / sourceWidth, height / sourceHeight);
       const renderedWidth = sourceWidth * scale;
       const renderedHeight = sourceHeight * scale;
       const offsetX = (width - renderedWidth) * positionX;

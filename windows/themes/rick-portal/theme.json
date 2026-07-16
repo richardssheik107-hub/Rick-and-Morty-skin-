@@ -1,7 +1,7 @@
 {
   "id": "rick-portal",
   "name": "Rick Portal Workspace",
-  "version": "1.6.0-preview.8",
+  "version": "1.6.0-preview.9",
   "css": "portal-theme.css",
   "renderer": "portal-renderer.js",
   "assets": {
@@ -18,6 +18,7 @@
     "maximumDevicePixelRatio": 1.5,
     "fluidResolutionScale": 0.72,
     "portal": {
+      "fit": "contain",
       "sourceWidth": 1672,
       "sourceHeight": 941,
       "centerX": 0.765,
