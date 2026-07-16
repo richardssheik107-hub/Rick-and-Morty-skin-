@@ -1,7 +1,7 @@
 {
   "id": "rick-portal",
   "name": "Rick Portal Workspace",
-  "version": "1.6.0-preview.9",
+  "version": "1.6.0-preview.10",
   "css": "portal-theme.css",
   "renderer": "portal-renderer.js",
   "assets": {
