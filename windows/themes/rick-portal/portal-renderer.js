@@ -1,4 +1,4 @@
-((cssText, homeArtDataUrl, homeHeroArtDataUrl, workArtDataUrl, themeMeta) => {
+((cssText, homeArtDataUrl, homeHeroArtDataUrl, workArtDataUrl, portalTextureDataUrl, themeMeta) => {
   const STATE_KEY = "__CODEX_DREAM_SKIN_STATE__";
   const STYLE_ID = "codex-dream-skin-style";
   const CHROME_ID = "codex-dream-skin-chrome";
@@ -36,13 +36,17 @@
   const workArtUrl = canReuseAssets && previous?.workArtUrl
     ? previous.workArtUrl
     : toObjectUrl(workArtDataUrl);
+  const portalTextureUrl = canReuseAssets && previous?.portalTextureUrl
+    ? previous.portalTextureUrl
+    : toObjectUrl(portalTextureDataUrl);
   if (!canReuseAssets) {
     if (previous?.homeArtUrl) URL.revokeObjectURL(previous.homeArtUrl);
     if (previous?.homeHeroArtUrl) URL.revokeObjectURL(previous.homeHeroArtUrl);
     if (previous?.workArtUrl) URL.revokeObjectURL(previous.workArtUrl);
+    if (previous?.portalTextureUrl) URL.revokeObjectURL(previous.portalTextureUrl);
   }
 
-  const createPortalMotion = (rawConfig = {}) => {
+  const createPortalMotion = (rawConfig = {}, textureUrl) => {
     const portalConfig = rawConfig.portal || {};
     const config = {
       enabled: rawConfig.enabled !== false,
@@ -66,6 +70,9 @@
     let gl = null;
     let fluidProgram = null;
     let fluidUniforms = null;
+    let fluidTexture = null;
+    let fluidTextureReady = false;
+    let fluidTextureImage = null;
     let fluidAvailable = false;
     let fluidFailure = null;
     let host = null;
@@ -93,6 +100,7 @@
       uniform vec2 uCenter;
       uniform vec2 uRadius;
       uniform float uTime;
+      uniform sampler2D uPortalTexture;
       out vec4 outColor;
 
       float hash21(vec2 p) {
@@ -118,31 +126,43 @@
         }
         return value;
       }
+      vec2 portalUv(float radius, float angle, float time, float phase) {
+        float radialNoise = fbm(vec2(angle * 1.18 + phase, radius * 6.4 - time * 0.10));
+        float differentialSpin = time * (0.012 + (1.0 - min(radius, 1.0)) * 0.022);
+        float liquidShear = sin(radius * 13.5 - time * 0.22 + phase) * 0.008;
+        liquidShear += (radialNoise - 0.5) * 0.018;
+        float flowedAngle = angle - differentialSpin + liquidShear;
+        float flowedRadius = radius;
+        flowedRadius += sin(angle * 5.0 + time * 0.27 + phase) * 0.0035;
+        flowedRadius += sin(radius * 19.0 - time * 0.31 + radialNoise * 3.0) * 0.0045;
+        vec2 direction = vec2(cos(flowedAngle), sin(flowedAngle));
+        return vec2(0.5) + direction * flowedRadius * 0.40;
+      }
       void main() {
-        vec2 p = (gl_FragCoord.xy - uCenter) / max(uRadius, vec2(1.0));
+        vec2 p = (gl_FragCoord.xy - uCenter) / max(uRadius * 0.84, vec2(1.0));
         float radius = length(p);
         float angle = atan(p.y, p.x);
         float time = uTime * 0.001;
-        float inverse = 1.0 - clamp(radius, 0.0, 1.0);
-        vec2 polar = vec2(angle * 1.38 - time * 0.24 + inverse * 5.6, radius * 7.4 - time * 0.20);
-        float warpA = fbm(polar + vec2(fbm(polar * 0.72), fbm(polar * 0.72 + 6.2)) * 1.55);
-        float warpB = fbm(polar * 1.64 + vec2(-time * 0.17, time * 0.13));
-        float filaments = pow(clamp(0.54 + 0.46 * sin(angle * 13.0 - radius * 37.0 - time * 2.15 + warpA * 8.4), 0.0, 1.0), 2.2);
-        float veins = pow(clamp(0.5 + 0.5 * sin(angle * 21.0 + radius * 52.0 + time * 1.27 + warpB * 7.0), 0.0, 1.0), 4.0);
-        float bodyMask = 1.0 - smoothstep(0.05, 1.08, radius);
-        float rim = (1.0 - smoothstep(0.91, 1.08, radius)) * smoothstep(0.73, 0.96, radius);
-        float core = pow(max(0.0, 1.0 - radius), 3.2);
-        float energy = bodyMask * (0.10 + filaments * 0.34 + veins * 0.19 + warpA * 0.10) + rim * 0.38 + core * 0.24;
-        float pulse = 0.92 + 0.08 * sin(time * 1.35 + warpB * 5.0);
-        vec3 deep = vec3(0.02, 0.26, 0.20);
-        vec3 green = vec3(0.33, 1.0, 0.16);
-        vec3 lime = vec3(0.82, 1.0, 0.30);
-        vec3 cyan = vec3(0.08, 0.78, 0.72);
-        vec3 color = mix(deep, green, clamp(filaments + core * 0.5, 0.0, 1.0));
-        color = mix(color, lime, clamp(veins * 0.72 + rim * 0.36, 0.0, 1.0));
-        color += cyan * warpB * 0.18;
-        float alpha = clamp(energy * pulse, 0.0, 0.72) * (1.0 - smoothstep(0.90, 1.12, radius));
-        outColor = vec4(color * (0.68 + energy), alpha);
+        vec2 baseUv = vec2(0.5) + p * 0.40;
+        vec2 flowUv = portalUv(radius, angle, time, 0.0);
+        vec3 textureBase = texture(uPortalTexture, baseUv, 0.25).rgb;
+        vec3 textureFlow = texture(uPortalTexture, flowUv, 0.35).rgb;
+        float flowMix = 0.22 + 0.08 * fbm(vec2(angle * 1.6, radius * 8.0 - time * 0.10));
+        vec3 color = mix(textureBase, textureFlow, flowMix);
+
+        float greenSignal = textureBase.g - max(textureBase.r, textureBase.b) * 0.18;
+        float liquidMask = smoothstep(0.035, 0.15, greenSignal);
+        float edgeNoise = fbm(vec2(angle * 2.2 - time * 0.08, radius * 7.0));
+        float boundary = 1.015 + (edgeNoise - 0.5) * 0.022;
+        float circleMask = 1.0 - smoothstep(boundary - 0.045, boundary, radius);
+        float core = pow(max(0.0, 1.0 - radius), 4.1);
+        float pulse = 0.96 + 0.04 * sin(time * 0.82);
+
+        color *= vec3(1.0, 1.025, 1.0);
+        color += vec3(0.48, 0.82, 0.12) * core * 0.08;
+        float innerDisc = 1.0 - smoothstep(0.76, 0.94, radius);
+        float alpha = circleMask * max(innerDisc * 0.72, liquidMask * 0.90) * pulse;
+        outColor = vec4(color, clamp(alpha, 0.0, 0.92));
       }
     `;
 
@@ -158,8 +178,32 @@
       return shader;
     };
 
+    const uploadFluidTexture = () => {
+      if (!gl || !fluidTextureImage?.complete || !fluidTextureImage.naturalWidth) return false;
+      if (fluidTexture) gl.deleteTexture(fluidTexture);
+      fluidTexture = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, fluidTexture);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, fluidTextureImage);
+      gl.generateMipmap(gl.TEXTURE_2D);
+      fluidTextureReady = true;
+      fluidCanvas.dataset.portalTexture = `${fluidTextureImage.naturalWidth}x${fluidTextureImage.naturalHeight}`;
+      if (active && !reducedMotion?.matches) {
+        fluidCanvas.hidden = false;
+        queueMicrotask(() => {
+          if (active && !destroyed) renderScene(performance.now());
+        });
+      }
+      return true;
+    };
+
     const initializeFluid = () => {
       fluidAvailable = false;
+      fluidTextureReady = false;
       fluidFailure = null;
       if (!fluidCanvas) return;
       try {
@@ -187,17 +231,31 @@
           center: gl.getUniformLocation(fluidProgram, "uCenter"),
           radius: gl.getUniformLocation(fluidProgram, "uRadius"),
           time: gl.getUniformLocation(fluidProgram, "uTime"),
+          portalTexture: gl.getUniformLocation(fluidProgram, "uPortalTexture"),
         };
         gl.disable(gl.DEPTH_TEST);
         gl.enable(gl.BLEND);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         fluidAvailable = true;
         fluidCanvas.dataset.portalMotion = "webgl2-fluid";
+        if (!fluidTextureImage) {
+          fluidTextureImage = new Image();
+          fluidTextureImage.decoding = "async";
+          fluidTextureImage.onload = uploadFluidTexture;
+          fluidTextureImage.onerror = () => {
+            fluidTextureReady = false;
+            fluidFailure = "Portal texture failed to load";
+          };
+          fluidTextureImage.src = textureUrl;
+        } else {
+          uploadFluidTexture();
+        }
       } catch (error) {
         fluidFailure = String(error?.message || error);
         fluidCanvas.dataset.portalMotion = "canvas-fallback";
         gl = null;
         fluidProgram = null;
+        fluidTexture = null;
       }
     };
 
@@ -302,12 +360,12 @@
         resizeObserver.observe(host);
       }
       canvas.hidden = false;
-      fluidCanvas.hidden = !fluidAvailable;
+      fluidCanvas.hidden = !(fluidAvailable && fluidTextureReady);
       resize();
     };
 
     const drawFluid = (time) => {
-      if (!fluidAvailable || !gl || !fluidProgram || !portalGeometry || !fluidCanvas) return false;
+      if (!fluidAvailable || !fluidTextureReady || !gl || !fluidProgram || !fluidTexture || !portalGeometry || !fluidCanvas) return false;
       const scaleX = fluidCanvas.width / Math.max(1, portalGeometry.width);
       const scaleY = fluidCanvas.height / Math.max(1, portalGeometry.height);
       gl.viewport(0, 0, fluidCanvas.width, fluidCanvas.height);
@@ -328,6 +386,9 @@
       );
       gl.uniform2f(fluidUniforms.radius, portalGeometry.radiusX * scaleX, portalGeometry.radiusY * scaleY);
       gl.uniform1f(fluidUniforms.time, time);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, fluidTexture);
+      gl.uniform1i(fluidUniforms.portalTexture, 0);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       gl.disable(gl.SCISSOR_TEST);
       return true;
@@ -398,7 +459,7 @@
     const updateLoop = () => {
       if (shouldAnimate()) {
         canvas?.removeAttribute("hidden");
-        if (fluidAvailable) fluidCanvas?.removeAttribute("hidden");
+        if (fluidAvailable && fluidTextureReady) fluidCanvas?.removeAttribute("hidden");
         if (!frameRequest) {
           lastDrawTime = 0;
           frameRequest = requestAnimationFrame(drawFrame);
@@ -473,6 +534,10 @@
       fluidCanvasPresent: Boolean(fluidCanvas?.isConnected),
       fluidCanvasCount: document.querySelectorAll(`#${FLUID_CANVAS_ID}`).length,
       fluidAvailable,
+      fluidTextureReady,
+      fluidTextureSize: fluidTextureImage?.naturalWidth
+        ? `${fluidTextureImage.naturalWidth}x${fluidTextureImage.naturalHeight}`
+        : null,
       fluidFailure,
       visuallyContained: canvasBehindContent && fluidBehindContent && portalClipActive && hostStyle?.isolation === "isolate",
       layers: {
@@ -483,7 +548,7 @@
       },
       frameCount,
       targetFps: currentFps,
-      visualMode: fluidAvailable ? "fluid-vortex" : "soft-glow-fallback",
+      visualMode: fluidAvailable && fluidTextureReady ? "textured-liquid-vortex" : "soft-glow-fallback",
       particleCount: 0,
       rollingDrawMs: Number(rollingDrawMs.toFixed(3)),
       portal: portalGeometry ? {
@@ -510,9 +575,17 @@
       canvas = null;
       context = null;
       fluidCanvas = null;
+      if (gl && fluidTexture) gl.deleteTexture(fluidTexture);
       gl = null;
       fluidProgram = null;
       fluidUniforms = null;
+      fluidTexture = null;
+      fluidTextureReady = false;
+      if (fluidTextureImage) {
+        fluidTextureImage.onload = null;
+        fluidTextureImage.onerror = null;
+      }
+      fluidTextureImage = null;
       host = null;
     };
 
@@ -521,7 +594,7 @@
     return { sync, resize, destroy, snapshot, sampleHash, renderOnce };
   };
 
-  const motion = createPortalMotion(themeMeta.motion || {});
+  const motion = createPortalMotion(themeMeta.motion || {}, portalTextureUrl);
 
   const classifyPage = () => {
     const home = document.querySelector('[role="main"]:has([data-testid="home-icon"])');
@@ -639,6 +712,7 @@
     if (state?.homeArtUrl) URL.revokeObjectURL(state.homeArtUrl);
     if (state?.homeHeroArtUrl) URL.revokeObjectURL(state.homeHeroArtUrl);
     if (state?.workArtUrl) URL.revokeObjectURL(state.workArtUrl);
+    if (state?.portalTextureUrl) URL.revokeObjectURL(state.portalTextureUrl);
     delete window[STATE_KEY];
     return true;
   };
@@ -668,9 +742,10 @@
     homeArtUrl,
     homeHeroArtUrl,
     workArtUrl,
+    portalTextureUrl,
     version: themeMeta.version,
     theme: themeMeta.id,
   };
   ensure();
   return { installed: true, version: themeMeta.version, theme: themeMeta.id };
-})(__PORTAL_CSS_JSON__, __PORTAL_HOME_ART_JSON__, __PORTAL_HOME_HERO_ART_JSON__, __PORTAL_WORK_ART_JSON__, __PORTAL_THEME_META_JSON__)
+})(__PORTAL_CSS_JSON__, __PORTAL_HOME_ART_JSON__, __PORTAL_HOME_HERO_ART_JSON__, __PORTAL_WORK_ART_JSON__, __PORTAL_FLUID_TEXTURE_JSON__, __PORTAL_THEME_META_JSON__)

@@ -123,14 +123,14 @@ html.codex-dream-skin.portal-skin main.main-surface.portal-thread-shell {
   display: block;
   pointer-events: none;
   opacity: .82;
-  mix-blend-mode: screen;
+  mix-blend-mode: normal;
   contain: strict;
 }
 
 #codex-portal-fluid {
   z-index: -2;
-  opacity: .72;
-  filter: saturate(116%) contrast(108%);
+  opacity: .80;
+  filter: saturate(104%) contrast(102%);
 }
 
 #codex-portal-motion {

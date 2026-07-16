@@ -132,18 +132,20 @@ async function loadPayload(themeName) {
     const themeRoot = path.join(root, "themes", themeName);
     const manifest = JSON.parse(await fs.readFile(path.join(themeRoot, "theme.json"), "utf8"));
     if (manifest.id !== themeName) throw new Error(`Theme id mismatch: expected ${themeName}, got ${manifest.id}`);
-    const [css, template, homeArt, homeHeroArt, workArt] = await Promise.all([
+    const [css, template, homeArt, homeHeroArt, workArt, portalTexture] = await Promise.all([
       fs.readFile(path.join(themeRoot, manifest.css), "utf8"),
       fs.readFile(path.join(themeRoot, manifest.renderer), "utf8"),
       fs.readFile(path.join(themeRoot, manifest.assets.home)),
       fs.readFile(path.join(themeRoot, manifest.assets.homeHero)),
       fs.readFile(path.join(themeRoot, manifest.assets.work)),
+      fs.readFile(path.join(themeRoot, manifest.assets.portalTexture)),
     ]);
     return template
       .replace("__PORTAL_CSS_JSON__", JSON.stringify(css))
       .replace("__PORTAL_HOME_ART_JSON__", JSON.stringify(`data:image/png;base64,${homeArt.toString("base64")}`))
       .replace("__PORTAL_HOME_HERO_ART_JSON__", JSON.stringify(`data:image/png;base64,${homeHeroArt.toString("base64")}`))
       .replace("__PORTAL_WORK_ART_JSON__", JSON.stringify(`data:image/png;base64,${workArt.toString("base64")}`))
+      .replace("__PORTAL_FLUID_TEXTURE_JSON__", JSON.stringify(`data:image/png;base64,${portalTexture.toString("base64")}`))
       .replace("__PORTAL_THEME_META_JSON__", JSON.stringify({
         id: manifest.id,
         version: manifest.version,
@@ -249,6 +251,7 @@ async function verifySession(session) {
         home: Boolean(window.__CODEX_DREAM_SKIN_STATE__?.homeArtUrl),
         homeHero: Boolean(window.__CODEX_DREAM_SKIN_STATE__?.homeHeroArtUrl),
         work: Boolean(window.__CODEX_DREAM_SKIN_STATE__?.workArtUrl),
+        portalTexture: Boolean(window.__CODEX_DREAM_SKIN_STATE__?.portalTextureUrl),
       },
       portalMotion,
       layoutIssues,
@@ -257,6 +260,7 @@ async function verifySession(session) {
     const motionCanvasHealthy = !motionEnabledForThread || (
       result.portalMotion.active && result.portalMotion.canvasPresent &&
       result.portalMotion.canvasCount === 1 && result.portalMotion.fluidCanvasCount === 1 &&
+      (!result.portalMotion.fluidAvailable || result.portalMotion.fluidTextureReady === true) &&
       result.portalMotion.visuallyContained === true && Boolean(result.portalMotion.portal)
     );
     const motionShouldRun = Boolean(motionEnabledForThread && !result.portalMotion.reducedMotion && !result.portalMotion.hidden);
