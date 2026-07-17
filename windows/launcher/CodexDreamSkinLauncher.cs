@@ -2,9 +2,19 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Threading;
 
 internal static class CodexDreamSkinLauncher
 {
+    private const int SwRestore = 9;
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindowAsync(IntPtr window, int command);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr window);
+
     [STAThread]
     private static int Main(string[] args)
     {
@@ -35,7 +45,18 @@ internal static class CodexDreamSkinLauncher
                 CreateNoWindow = true,
                 WindowStyle = ProcessWindowStyle.Hidden
             };
-            Process.Start(startInfo);
+            Process launcher = Process.Start(startInfo);
+            if (launcher == null)
+            {
+                throw new InvalidOperationException("Codex Dream Skin startup process could not be created.");
+            }
+            launcher.WaitForExit();
+            if (launcher.ExitCode != 0)
+            {
+                return launcher.ExitCode;
+            }
+
+            ActivateCodexWindow();
             return 0;
         }
         catch (Exception error)
@@ -47,6 +68,29 @@ internal static class CodexDreamSkinLauncher
             File.AppendAllText(Path.Combine(stateRoot, "native-launcher-error.log"),
                 DateTimeOffset.Now.ToString("o") + " " + error + Environment.NewLine);
             return 1;
+        }
+    }
+
+    private static void ActivateCodexWindow()
+    {
+        for (int attempt = 0; attempt < 40; attempt++)
+        {
+            Process candidate = Process.GetProcessesByName("ChatGPT")
+                .Where(process => process.MainWindowHandle != IntPtr.Zero)
+                .OrderByDescending(process =>
+                {
+                    try { return process.StartTime; }
+                    catch { return DateTime.MinValue; }
+                })
+                .FirstOrDefault();
+            if (candidate != null)
+            {
+                IntPtr window = candidate.MainWindowHandle;
+                ShowWindowAsync(window, SwRestore);
+                SetForegroundWindow(window);
+                return;
+            }
+            Thread.Sleep(250);
         }
     }
 

@@ -14,8 +14,10 @@ param(
 $ErrorActionPreference = 'Stop'
 $SkillRoot = Split-Path -Parent $PSScriptRoot
 $Injector = Join-Path $PSScriptRoot 'injector.mjs'
+$GuardianScript = Join-Path $PSScriptRoot 'watch-dream-skin.ps1'
 $StateRoot = Join-Path $env:LOCALAPPDATA 'CodexDreamSkin'
 $StatePath = Join-Path $StateRoot 'state.json'
+$GuardianStatePath = Join-Path $StateRoot 'guardian-state.json'
 $StdoutPath = Join-Path $StateRoot 'injector.log'
 $StderrPath = Join-Path $StateRoot 'injector-error.log'
 $LauncherLogPath = Join-Path $StateRoot 'launcher.log'
@@ -29,6 +31,29 @@ if (-not $ProfilePath) {
 
 function Write-LauncherLog([string]$Message) {
   "$(Get-Date -Format o) $Message" | Add-Content -LiteralPath $LauncherLogPath -Encoding utf8
+}
+
+function Test-GuardianAlive {
+  if (-not (Test-Path -LiteralPath $GuardianStatePath)) { return $false }
+  try {
+    $guardianState = Get-Content -LiteralPath $GuardianStatePath -Raw | ConvertFrom-Json
+    if (-not $guardianState.guardianPid) { return $false }
+    $guardian = Get-CimInstance Win32_Process -Filter "ProcessId = $([int]$guardianState.guardianPid)" -ErrorAction SilentlyContinue
+    return [bool]($guardian -and $guardian.CommandLine -match 'watch-dream-skin\.ps1' -and $guardian.CommandLine -match 'Codex-Dream-Skin')
+  } catch {
+    return $false
+  }
+}
+
+function Ensure-Guardian {
+  if (Test-GuardianAlive) { return }
+  $powershell = (Get-Command powershell.exe -ErrorAction Stop).Source
+  $guardianArguments = @(
+    '-NoProfile', '-WindowStyle', 'Hidden', '-ExecutionPolicy', 'Bypass',
+    '-File', "`"$GuardianScript`"", '-Port', "$Port", '-Theme', "`"$Theme`""
+  )
+  $guardian = Start-Process -FilePath $powershell -ArgumentList $guardianArguments -WindowStyle Hidden -PassThru
+  Write-LauncherLog "Guardian was missing and has been restarted with pid $($guardian.Id)"
 }
 
 $launcherMutex = $null
@@ -224,6 +249,7 @@ for ($attempt = 0; $attempt -lt 45; $attempt++) {
 }
 if (-not $verified) { throw 'Dream skin launched but verification failed. See injector logs.' }
 Write-LauncherLog "Theme $Theme verified on port $Port with injector pid $($daemon.Id)"
+Ensure-Guardian
 if ($launcherMutexAcquired -and $launcherMutex) {
   $launcherMutex.ReleaseMutex()
   $launcherMutexAcquired = $false
