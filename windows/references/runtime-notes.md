@@ -8,3 +8,4 @@
 - `%LOCALAPPDATA%\CodexDreamSkin\state.json` records the port and daemon PID. Logs stay in the same directory.
 - A normally launched Codex window may remain open while the persistent skin profile starts. Once the themed window is verified, close the unthemed window if it is no longer needed.
 - Store updates are supported because the launcher queries `Get-AppxPackage OpenAI.Codex` on every launch.
+- When the current user's Windows Internet proxy is enabled, the launcher validates its endpoint, probes OpenAI through that same route, passes it to Chromium with `--proxy-server`, and exposes process-local `HTTP_PROXY`, `HTTPS_PROXY`, and `ALL_PROXY` values for Codex helpers. Nothing is written to the machine-wide proxy configuration, so stopping the VPN does not leave a stale global override.

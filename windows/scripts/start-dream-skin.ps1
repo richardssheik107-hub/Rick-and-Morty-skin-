@@ -80,17 +80,71 @@ function Test-CodexDebugPort([int]$CandidatePort) {
   }
 }
 
-function Test-ThemeNetworkReady {
+function Test-TcpEndpoint([string]$HostName, [int]$EndpointPort, [int]$TimeoutMilliseconds = 700) {
+  $client = [System.Net.Sockets.TcpClient]::new()
   try {
-    # Use WinHTTP/Internet settings so VPN and system-proxy configurations are
-    # respected. Any HTTP response proves that the route is available; the
-    # unauthenticated auth endpoint commonly responds with 403, which is fine.
-    Invoke-WebRequest `
-      -Uri 'https://auth.openai.com/' `
-      -Method Head `
-      -UseBasicParsing `
-      -TimeoutSec 8 `
-      -ErrorAction Stop | Out-Null
+    $pending = $client.BeginConnect($HostName, $EndpointPort, $null, $null)
+    if (-not $pending.AsyncWaitHandle.WaitOne($TimeoutMilliseconds, $false)) { return $false }
+    $client.EndConnect($pending)
+    return $true
+  } catch {
+    return $false
+  } finally {
+    $client.Dispose()
+  }
+}
+
+function Get-ThemeProxy {
+  try {
+    $settings = Get-ItemProperty `
+      -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings' `
+      -ErrorAction Stop
+    if ([int]$settings.ProxyEnable -ne 1 -or [string]::IsNullOrWhiteSpace([string]$settings.ProxyServer)) {
+      return $null
+    }
+
+    $rawProxy = ([string]$settings.ProxyServer).Trim()
+    $proxyValue = $rawProxy
+    if ($rawProxy.Contains('=')) {
+      $mappedProxies = @{}
+      foreach ($entry in $rawProxy.Split(';')) {
+        $parts = $entry.Split('=', 2)
+        if ($parts.Count -eq 2) { $mappedProxies[$parts[0].Trim().ToLowerInvariant()] = $parts[1].Trim() }
+      }
+      if ($mappedProxies.ContainsKey('https')) { $proxyValue = $mappedProxies['https'] }
+      elseif ($mappedProxies.ContainsKey('http')) { $proxyValue = $mappedProxies['http'] }
+      else { return $null }
+    }
+
+    if ($proxyValue -notmatch '^[a-z][a-z0-9+.-]*://') { $proxyValue = "http://$proxyValue" }
+    $proxyUri = [Uri]$proxyValue
+    if (-not $proxyUri.Host -or $proxyUri.Port -le 0 -or -not [string]::IsNullOrEmpty($proxyUri.UserInfo)) {
+      return $null
+    }
+    return $proxyUri.AbsoluteUri.TrimEnd('/')
+  } catch {
+    return $null
+  }
+}
+
+function Test-ThemeNetworkReady([string]$ProxyUri) {
+  try {
+    # PowerShell 5 uses WinHTTP here, which does not automatically follow the
+    # current user's Internet proxy. Pass the same proxy that Chromium receives
+    # so the readiness result represents the route Codex will actually use.
+    if ($ProxyUri) {
+      $proxyEndpoint = [Uri]$ProxyUri
+      if (-not (Test-TcpEndpoint $proxyEndpoint.Host $proxyEndpoint.Port)) { return $false }
+    }
+    $request = @{
+      Uri = 'https://auth.openai.com/'
+      Method = 'Head'
+      UseBasicParsing = $true
+      TimeoutSec = 8
+      ErrorAction = 'Stop'
+    }
+    if ($ProxyUri) { $request.Proxy = $ProxyUri }
+    Invoke-WebRequest @request | Out-Null
     return $true
   } catch {
     if ($_.Exception.Response) { return $true }
@@ -155,12 +209,25 @@ if (-not $launcherMutexAcquired) {
 $node = (Get-Command node -ErrorAction Stop).Source
 $debugReady = Test-CodexDebugPort $Port
 $mainProcesses = @(Get-Process ChatGPT -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 })
+$themeProxy = Get-ThemeProxy
+
+if ($themeProxy) {
+  # Keep these settings local to this launcher. They can be inherited by Codex
+  # helper processes without leaving a stale machine-wide proxy when VPN exits.
+  $env:HTTP_PROXY = $themeProxy
+  $env:HTTPS_PROXY = $themeProxy
+  $env:ALL_PROXY = $themeProxy
+  $env:NO_PROXY = 'localhost,127.0.0.1'
+  Write-LauncherLog "Using configured Windows proxy $themeProxy for Codex UI, backend, and network readiness"
+} else {
+  Write-LauncherLog 'No enabled Windows proxy was detected; using the direct/system route'
+}
 
 if ($WaitForNetwork -and -not $debugReady) {
-  Write-LauncherLog "Waiting for VPN/system-proxy access to auth.openai.com"
+  Write-LauncherLog "Waiting for OpenAI access using the selected Codex network route"
   $networkDeadline = (Get-Date).AddSeconds($NetworkTimeoutSeconds)
   $networkAttempt = 0
-  while (-not (Test-ThemeNetworkReady)) {
+  while (-not (Test-ThemeNetworkReady $themeProxy)) {
     $networkAttempt += 1
     if ((Get-Date) -ge $networkDeadline) {
       throw "VPN/network did not become ready within $NetworkTimeoutSeconds seconds."
@@ -201,6 +268,7 @@ if (-not (Test-CodexDebugPort $Port)) {
     New-Item -ItemType Directory -Force -Path $ProfilePath | Out-Null
     $arguments += "--user-data-dir=$ProfilePath"
   }
+  if ($themeProxy) { $arguments += "--proxy-server=$themeProxy" }
   $arguments += '--remote-debugging-address=127.0.0.1'
   Write-LauncherLog "Activating $($package.PackageFamilyName)!App with $($arguments -join ' ')"
   $activatedPid = Start-PackagedCodex $package $arguments
