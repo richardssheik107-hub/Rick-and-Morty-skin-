@@ -113,22 +113,26 @@ async function waitForTargets(port, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
   let lastError;
   while (Date.now() < deadline) {
-    try {
-      const response = await fetch(`http://127.0.0.1:${port}/json/list`);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const targets = await response.json();
-      const pages = targets.filter((item) =>
-        item.type === "page"
-        && item.url.startsWith("app://-/index.html")
-        && !item.url.includes("initialRoute=%2Favatar-overlay")
-      );
-      if (pages.length) return pages;
-    } catch (error) {
-      lastError = error;
+    for (const host of ["[::1]", "127.0.0.1"]) {
+      try {
+        const response = await fetch(`http://${host}:${port}/json/list`, {
+          signal: AbortSignal.timeout(800),
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const targets = await response.json();
+        const pages = targets.filter((item) =>
+          item.type === "page"
+          && item.url.startsWith("app://-/index.html")
+          && !item.url.includes("initialRoute=%2Favatar-overlay")
+        );
+        if (pages.length) return pages;
+      } catch (error) {
+        lastError = error;
+      }
     }
     await new Promise((resolve) => setTimeout(resolve, 350));
   }
-  throw new Error(`No Codex renderer target on 127.0.0.1:${port}: ${lastError?.message ?? "timed out"}`);
+  throw new Error(`No Codex renderer target on loopback port ${port}: ${lastError?.message ?? "timed out"}`);
 }
 
 async function loadPayload(themeName) {

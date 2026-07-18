@@ -21,12 +21,13 @@ function Write-GuardianLog([string]$Message) {
 }
 
 function Test-CodexDebugPort {
-  try {
-    $targets = Invoke-RestMethod "http://127.0.0.1:$Port/json/list" -TimeoutSec 1
-    return [bool]($targets | Where-Object { $_.type -eq 'page' -and $_.url -like 'app://*' })
-  } catch {
-    return $false
+  foreach ($hostAddress in @('[::1]', '127.0.0.1')) {
+    try {
+      $targets = Invoke-RestMethod "http://$hostAddress`:$Port/json/list" -TimeoutSec 1
+      if ($targets | Where-Object { $_.type -eq 'page' -and $_.url -like 'app://*' }) { return $true }
+    } catch {}
   }
+  return $false
 }
 
 $mutex = [System.Threading.Mutex]::new($false, "Local\CodexDreamSkinGuardian-$Port")

@@ -72,12 +72,13 @@ trap {
 Write-LauncherLog "Starting theme=$Theme port=$Port profile=$ProfilePath restartExisting=$RestartExisting"
 
 function Test-CodexDebugPort([int]$CandidatePort) {
-  try {
-    $targets = Invoke-RestMethod "http://127.0.0.1:$CandidatePort/json/list" -TimeoutSec 1
-    return [bool]($targets | Where-Object { $_.type -eq 'page' -and $_.url -like 'app://*' })
-  } catch {
-    return $false
+  foreach ($hostAddress in @('[::1]', '127.0.0.1')) {
+    try {
+      $targets = Invoke-RestMethod "http://$hostAddress`:$CandidatePort/json/list" -TimeoutSec 1
+      if ($targets | Where-Object { $_.type -eq 'page' -and $_.url -like 'app://*' }) { return $true }
+    } catch {}
   }
+  return $false
 }
 
 function Test-TcpEndpoint([string]$HostName, [int]$EndpointPort, [int]$TimeoutMilliseconds = 700) {
