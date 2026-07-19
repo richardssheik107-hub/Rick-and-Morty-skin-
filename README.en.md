@@ -1,5 +1,7 @@
 # Codex Dream Skin
 
+> Windows `rick-portal` theme `1.6.0-preview.10`: full deep-space work art, a separate character foreground, a naturally animated green portal, native dark-teal controls, and a reversible CDP injection flow.
+
 <p align="center">
   <a href="./README.md">中文</a> · <strong>English</strong>
 </p>
@@ -109,6 +111,55 @@ More detail:
 - Paths: [`docs/platforms.md`](./docs/platforms.md)
 - Project notes: [`docs/PROJECT.md`](./docs/PROJECT.md)
 
+### Direct Windows deployment
+
+Requirements: Windows 10/11, the signed-in Microsoft Store Codex app, PowerShell 5.1+, Node.js 18+, and Git.
+
+Until the preview is merged into `main`, clone the deployable theme branch directly:
+
+```powershell
+git clone --branch agent/animated-portal-v1.6.0-preview --single-branch https://github.com/richardssheik107-hub/Rick-and-Morty-skin-.git
+Set-Location .\Rick-and-Morty-skin-
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\windows\scripts\install-dream-skin.ps1 -Port 9347 -Theme rick-portal
+.\windows\bin\CodexDreamSkinLauncher.exe -Port 9347 -Theme rick-portal
+```
+
+Verify the live UI and animation:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\windows\scripts\verify-dream-skin.ps1 -Port 9347 -Theme rick-portal
+```
+
+`"pass": true` confirms the sidebar, composer, art layers, animated portal, and layout checks.
+
+### Taskbar pinning
+
+Unpin the official Codex/ChatGPT icon, search the Start menu for **Codex Dream Skin**, and pin that search result directly. Do not pin the running window: Windows will pin the official app AUMID and bypass the theme launcher.
+
+### Troubleshooting learned during development
+
+- **Taskbar opens the stock UI:** check `%LOCALAPPDATA%\CodexDreamSkin\launcher.log`. No new entry means the official shortcut was used.
+- **Store update breaks injection:** rerun `install-dream-skin.ps1` to refresh shortcuts. The launcher discovers the newest package automatically.
+- **CDP port looks unavailable:** new Store builds may bind `::1` while an older process owns `127.0.0.1`. The current launcher, Guardian, and injector probe both loopback families.
+- **VPN/Clash keeps reconnecting:** enable the Windows system proxy and verify its local port. The launcher uses the same detected proxy for readiness checks, Chromium, and Codex helpers without writing a permanent machine-wide override.
+- **Repeated close/reopen:** Guardian converts an unthemed official launch once. Current process tracking and dual-stack CDP checks prevent the earlier conversion loop.
+- **Theme disappears after navigation:** keep Guardian and the Node injector alive; both are repaired by launching the themed shortcut again.
+
+Useful diagnostics:
+
+```powershell
+Get-Content "$env:LOCALAPPDATA\CodexDreamSkin\launcher.log" -Tail 40
+Get-NetTCPConnection -State Listen -LocalPort 9347
+Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings' | Select-Object ProxyEnable,ProxyServer
+```
+
+Restore or uninstall:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\windows\scripts\restore-dream-skin.ps1 -Port 9347
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\windows\scripts\restore-dream-skin.ps1 -Port 9347 -Uninstall -RestoreBaseTheme
+```
+
 ## Feedback & contributions
 
 - **Issues:** Use the [issue templates](./.github/ISSUE_TEMPLATE/) (bug / feature). Blank issues are disabled. Please try Verify / Restore self-checks before filing bugs.
@@ -116,7 +167,7 @@ More detail:
 
 ## Safety
 
-- CDP binds `127.0.0.1` only — avoid untrusted local processes while the theme runs.
+- CDP binds to local IPv4/IPv6 loopback only — avoid untrusted local processes while the theme runs.
 - Does not touch the official install directory or code signature.
 - **Never** rewrites API Key / Base URL; relay and theme stay separate.
 
